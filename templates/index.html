@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShardGate</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#2d333b; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --warn:#f85149; --ok:#3fb950; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:20px 28px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:12px; }
+  header h1 { margin:0; font-size:22px; letter-spacing:.5px; }
+  header span { color:var(--muted); font-size:13px; }
+  main { max-width:960px; margin:0 auto; padding:24px; display:grid; gap:18px; }
+  .cards { display:flex; gap:14px; flex-wrap:wrap; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 18px; min-width:150px; }
+  .card h3 { margin:0 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); }
+  .card .big { font-size:22px; font-weight:600; }
+  .ok { color:var(--ok); } .bad { color:var(--warn); } .accent { color:var(--accent); }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  section h2 { margin:0 0 12px; font-size:15px; }
+  textarea, input[type=text] { width:100%; background:#0d1117; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; font:inherit; }
+  button { background:var(--accent); border:none; color:#0d1117; font-weight:600; padding:9px 16px; border-radius:8px; cursor:pointer; }
+  button.danger { background:var(--warn); color:#fff; }
+  button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .row { display:flex; gap:10px; margin-top:10px; }
+  #answer { margin-top:14px; padding:14px; background:#0d1117; border:1px solid var(--line); border-radius:8px; white-space:pre-wrap; display:none; }
+  #answer.refused { border-color:var(--warn); color:var(--warn); }
+  .muted { color:var(--muted); font-size:12px; }
+  ul.docs { margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  td.ev { font-family:ui-monospace,monospace; }
+</style>
+</head>
+<body>
+<header><h1>ShardGate</h1><span>an AI agent that is private where inputs are encrypted</span></header>
+<main>
+  <div class="cards">
+    <div class="card"><h3>Master key at rest</h3><div class="big accent">shattered</div><div class="muted" id="shardline">2-of-3 Shamir shards</div></div>
+    <div class="card"><h3>Shards present</h3><div class="big" id="shards">-</div></div>
+    <div class="card"><h3>Encrypted docs</h3><div class="big" id="docs">-</div></div>
+  </div>
+
+  <section>
+    <h2>Ask the agent</h2>
+    <input type="text" id="q" placeholder="What does ShardGate do when a shard is destroyed?">
+    <div class="row"><button onclick="ask()">Ask (unlocks vault in RAM for an instant)</button></div>
+    <div id="answer"></div>
+  </section>
+
+  <section>
+    <h2>Add an encrypted document</h2>
+    <input type="text" id="docname" placeholder="file name, e.g. notes.txt">
+    <textarea id="doctext" rows="4" placeholder="Paste text. It is encrypted with AES-256-GCM before it touches the disk."></textarea>
+    <div class="row"><button onclick="addDoc()">Encrypt and store</button></div>
+    <ul class="docs" id="doclist"></ul>
+  </section>
+
+  <section>
+    <h2>Compromise simulation</h2>
+    <div class="muted">Destroy one shard and watch the agent refuse. With fewer shards than the threshold, the key cannot be rebuilt, and the encrypted vault stays encrypted.</div>
+    <div class="row">
+      <button class="danger" onclick="compromise(3)">Destroy shard 3</button>
+      <button class="ghost" onclick="reset()">Reset demo vault</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Audit trail</h2>
+    <table><tbody id="audit"></tbody></table>
+  </section>
+</main>
+<script>
+async function refresh(){
+  const s = await (await fetch('/api/status')).json();
+  document.getElementById('shardline').textContent = s.threshold + '-of-' + s.shares + ' Shamir shards';
+  document.getElementById('shards').textContent = s.present_shards.length + ' / ' + s.shares;
+  document.getElementById('shards').className = 'big ' + (s.present_shards.length >= s.threshold ? 'ok' : 'bad');
+  document.getElementById('docs').textContent = s.docs.length;
+  document.getElementById('doclist').innerHTML = s.docs.map(d => '<li>' + d.name + ' (' + d.size + ' bytes, ciphertext on disk)</li>').join('');
+  document.getElementById('audit').innerHTML = s.audit.reverse().map(a =>
+    '<tr><td class="ev">' + a.event + '</td><td>' + (a.detail||'') + '</td></tr>').join('');
+}
+async function ask(){
+  const box = document.getElementById('answer');
+  box.style.display='block'; box.className=''; box.textContent='Decrypting in RAM...';
+  const r = await (await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:document.getElementById('q').value})})).json();
+  if (r.refused){ box.className='refused'; box.textContent='REFUSED: ' + r.reason; }
+  else { box.textContent=r.answer + '\n\n[sources: ' + (r.sources||[]).join(', ') + ' | answerer: ' + r.llm + ' | plaintext buffer zeroized]'; }
+  refresh();
+}
+async function addDoc(){
+  await fetch('/api/documents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('docname').value,text:document.getElementById('doctext').value})});
+  document.getElementById('docname').value=''; document.getElementById('doctext').value=''; refresh();
+}
+async function compromise(i){ await fetch('/api/compromise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shard:i})}); refresh(); }
+async function reset(){ await fetch('/api/reset',{method:'POST'}); refresh(); }
+refresh();
+</script>
+</body>
+</html>
