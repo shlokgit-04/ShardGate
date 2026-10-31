@@ -68,7 +68,8 @@ class ShardGateAgent:
                 for idx, chunk in enumerate(self._chunks(text)):
                     contexts.append({"doc": name, "chunk": idx, "text": chunk})
 
-            llm = self.llm if (self.llm and self.llm.fn) else OfflineAnswerer()
+            fn = getattr(self.llm, "fn", None) if self.llm else None
+            llm = self.llm if fn else OfflineAnswerer()
             answer, sources = llm.answer(question, contexts)
             self.audit.log("DECRYPT_OK",
                            f"question served over {len(contexts)} chunks from "
