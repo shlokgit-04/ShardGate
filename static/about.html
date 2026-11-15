@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About - ShardGate</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#2d333b; --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; }
+  body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 28px; border-bottom:1px solid var(--line); }
+  header a { color:var(--text); text-decoration:none; font-size:20px; font-weight:600; }
+  main { max-width:760px; margin:0 auto; padding:28px 24px; line-height:1.6; font-size:15px; }
+  h1 { font-size:24px; } h2 { font-size:17px; margin-top:28px; }
+  .muted { color:var(--muted); }
+  footer { border-top:1px solid var(--line); margin-top:32px; padding:18px 28px; display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted); }
+  footer a { color:var(--muted); text-decoration:none; }
+  footer .credit { margin-left:auto; }
+</style>
+</head>
+<body>
+<header><a href="/">ShardGate</a></header>
+<main>
+<h1>About ShardGate</h1>
+<p>ShardGate is an AI agent built around a simple promise: your private documents stay encrypted, and the model still gets to answer questions about them.</p>
+<h2>How it works</h2>
+<p>Documents are encrypted with AES-256-GCM. The master key is split into three Shamir shares with a 2-of-3 threshold, so the key never exists whole on disk. When you ask a question, the guardian reassembles the key in memory for an instant, decrypts the relevant documents, answers from them, and wipes the key buffer. Destroy one share and the agent refuses to unlock anything: a compromise you can watch happen in the dashboard, with an append-only audit trail of every unlock, refusal and tamper event.</p>
+<h2>Why it matters</h2>
+<p>Most AI tools ask you to paste private text into someone else's model. ShardGate shows the opposite pattern: privacy enforced by cryptography, with an agent that works only over data it can cryptographically prove is untampered.</p>
+<h2>The person behind it</h2>
+<p>ShardGate is made by Shlok Vane, a developer in Pune who builds privacy-first AI projects. More of his work is at <a href="https://shlokgit-04.github.io" style="color:var(--accent)">shlok.is-a.dev</a>.</p>
+</main>
+<footer>
+  <a href="/privacy.html">Privacy policy</a>
+  <a href="/about.html">About</a>
+  <span class="credit"><a href="https://shlokgit-04.github.io" rel="noopener">Made by Shlok V.</a></span>
+</footer>
+</body>
+</html>
